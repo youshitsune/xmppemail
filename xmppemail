@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# XMPP bot that mirrors chat between two MUC rooms
+# XMPP bot that mirrors chat from MUC room to mail
 import argparse
 import slixmpp
 import configparser
@@ -10,7 +10,7 @@ CONFIG_PATH = "./config.ini"
 VERSION='0.1.0'
 
 def show_version():
-        print("XMPPmirror " + VERSION)
+        print("XMPPemail " + VERSION)
         print("License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>")
         print("This is free software: you are free to change and redistribute it.")
         print("There is NO WARRANTY, to the extent permitted by law.")
@@ -44,7 +44,7 @@ class MUCBot(slixmpp.ClientXMPP):
             server.sendmail(self.send_mail , self.rec_mail, f"From: {self.send_mail}\r\nTo: {self.rec_mail}\r\n\r\n"+msg['body'])
 
 if __name__ == '__main__':
-    argparser = argparse.ArgumentParser(description="XMPP bot that mirrors chat between two MUC rooms")
+    argparser = argparse.ArgumentParser(description="XMPP bot that mirrors chat from MUC room to mail")
     argparser.add_argument("--version", dest="version", help="print version information and exit", action="store_true")
     args=argparser.parse_args()
 
