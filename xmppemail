@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+# XMPP bot that mirrors chat between two MUC rooms
+import argparse
+import slixmpp
+import configparser
+import smtplib
+
+CONFIG_PATH = "./config.ini"
+
+VERSION='0.1.0'
+
+def show_version():
+        print("XMPPmirror " + VERSION)
+        print("License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>")
+        print("This is free software: you are free to change and redistribute it.")
+        print("There is NO WARRANTY, to the extent permitted by law.")
+
+
+class MUCBot(slixmpp.ClientXMPP):
+
+    def __init__(self, jid, password, nick, room, send_mail, url, port, passwd, rec_mail):
+        slixmpp.ClientXMPP.__init__(self, jid, password)
+
+        self.nick = nick
+        self.room = room
+        self.send_mail = send_mail
+        self.rec_mail = rec_mail
+        self.url = url
+        self.port = port
+        self.passwd = passwd
+        self.add_event_handler("session_start", self.start)
+        self.add_event_handler("groupchat_message", self.muc_message)
+
+    async def start(self, event):
+        await self.get_roster()
+        self.send_presence()
+        self.plugin['xep_0045'].join_muc(self.room,self.nick)
+
+    def muc_message(self, msg):
+        server = smtplib.SMTP(str(self.url), port=int(self.port))
+        server.starttls()
+        server.login(str(self.send_mail), str(self.passwd))
+        if msg['mucnick'] != self.nick:
+            server.sendmail(self.send_mail , self.rec_mail, f"From: {self.send_mail}\r\nTo: {self.rec_mail}\r\n\r\n"+msg['body'])
+
+if __name__ == '__main__':
+    argparser = argparse.ArgumentParser(description="XMPP bot that mirrors chat between two MUC rooms")
+    argparser.add_argument("--version", dest="version", help="print version information and exit", action="store_true")
+    args=argparser.parse_args()
+
+    ## Version argument
+    if args.version:
+        show_version()
+        exit()
+
+    config = configparser.ConfigParser()
+    config.read(CONFIG_PATH)
+    JID = config.get('credentials', 'JID')
+    PASSWORD = config.get('credentials', 'PASSWORD')
+    NICK = config.get('credentials', 'NICK')
+    ROOM = config.get('credentials', 'ROOM')
+    SEND_MAIL = config.get('credentials', 'SENDER_MAIL')
+    SMTP_URL = config.get('credentials', 'SMTP_URL')
+    SMTP_PORT = config.get('credentials', 'SMTP_PORT')
+    SMTP_PASS = config.get('credentials', 'SMTP_PASS')
+    REC_MAIL = config.get('credentials', 'RECEIVE_MAIL')
+    HOST = None
+    PORT = 5222
+    if "host" in config.options('credentials'):
+        HOST = config.get('credentials', 'HOST')
+    if "port" in config.options('credentials'):
+        PORT = config.get('credentials', 'PORT')
+
+
+    xmpp = MUCBot(JID, PASSWORD, NICK, ROOM, SEND_MAIL, SMTP_URL, SMTP_PORT, SMTP_PASS, REC_MAIL)
+    xmpp.register_plugin('xep_0030') # Service Discovery
+    xmpp.register_plugin('xep_0045') # Multi-User Chat
+    xmpp.register_plugin('xep_0199') # XMPP Ping
+
+    # Connect to the XMPP server and start processing XMPP stanzas.
+    if HOST != None:
+        xmpp.connect(address=(HOST,int(PORT)))
+    else:
+        xmpp.connect()
+    xmpp.process()
+
